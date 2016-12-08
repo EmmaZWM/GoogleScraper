@@ -190,7 +190,7 @@ def main(return_results=False, parse_cmd_line=True, config_from_dict=None):
             pass
         return
 
-    init_outfile(config, force_reload=True)
+    init_outfile(config, force_reload=True)  # add by emma: init a output writer, in output_converter.py
 
     kwfile = config.get('keyword_file', '')
     if kwfile:
@@ -359,6 +359,7 @@ def main(return_results=False, parse_cmd_line=True, config_from_dict=None):
 
     # First of all, lets see how many requests remain to issue after searching the cache.
     if config.get('do_caching'):
+        # add by emma, here remove already cached searches
         scrape_jobs = cache_manager.parse_all_cached_files(scrape_jobs, session, scraper_search)
 
     if scrape_jobs:
@@ -378,6 +379,7 @@ def main(return_results=False, parse_cmd_line=True, config_from_dict=None):
             num_threads=num_search_engines))
 
         progress_thread = None
+
 
         # Let the games begin
         if method in ('selenium', 'http'):
@@ -418,6 +420,7 @@ def main(return_results=False, parse_cmd_line=True, config_from_dict=None):
                 while True:
                     worker = workers.get()
                     workers.put(worker)
+                    # add by emma here judge if job method and engine == worker's
                     if worker.is_suitabe(job):
                         worker.add_job(job)
                         break

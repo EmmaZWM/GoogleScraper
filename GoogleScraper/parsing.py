@@ -104,7 +104,12 @@ class Parser():
         # short alias because we use it so extensively
         self.css_to_xpath = HTMLTranslator().css_to_xpath
 
+        # encode, in case of encode error
         if self.html:
+            try:
+                self.html = self.html.encode('utf-8')
+            except Exception as e:
+                logger.error(e)
             self.parse()
 
     def parse(self, html=None):
@@ -114,7 +119,11 @@ class Parser():
             html: The raw html data to extract the SERP entries from.
         """
         if html:
-            self.html = html
+            try:
+                self.html = html.encode('utf-8')
+            except Exception as e:
+                self.html = html
+                logger.error(e)
 
         # lets do the actual parsing
         self._parse()
@@ -232,6 +241,7 @@ class Parser():
         """
         value = None
 
+
         if selector.endswith('::text'):
             try:
                 value = element.xpath(self.css_to_xpath(selector.split('::')[0]))[0].text_content()
@@ -273,6 +283,7 @@ class Parser():
                     if match:
                         return match
                 except IndexError as e:
+                    logger.debug(str(e))
                     pass
 
         return False
@@ -404,9 +415,9 @@ class GoogleParser(Parser):
     image_search_selectors = {
         'results': {
             'de_ip': {
-                'container': 'li#isr_mc',
+                'container': '#isr_mc',
                 'result_container': 'div.rg_di',
-                'link': 'a.rg_l::attr(href)'
+                'link': 'div.rg_meta::text'
             },
             'de_ip_raw': {
                 'container': '.images_table',
@@ -451,7 +462,7 @@ class GoogleParser(Parser):
 
         clean_regexes = {
             'normal': r'/url\?q=(?P<url>.*?)&sa=U&ei=',
-            'image': r'imgres\?imgurl=(?P<url>.*?)&'
+            'image': r'\"ou\":\"(?P<url>.*?)\"'
         }
 
         for key, i in self.iter_serp_items():
@@ -626,7 +637,7 @@ class BingParser(Parser):
             'ch_ip': {
                 'container': '#dg_c .imgres',
                 'result_container': '.dg_u',
-                'link': 'a.dv_i::attr(m)'
+                'link': 'a::attr(m)'
             },
         }
     }
@@ -1071,9 +1082,9 @@ if __name__ == '__main__':
         raw_html = requests.get(url).text
         parser = get_parser_by_url(url)
 
-    parser = parser(raw_html)
+    parser = parser(html=raw_html)
     parser.parse()
-    print(parser)
+    #print(parser)
 
     with open('/tmp/testhtml.html', 'w') as of:
         of.write(raw_html)

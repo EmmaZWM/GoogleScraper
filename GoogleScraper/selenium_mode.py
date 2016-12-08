@@ -10,9 +10,11 @@ import math
 import re
 import sys
 import os
+import traceback
 
 try:
     from selenium import webdriver
+    from selenium.webdriver import ActionChains
     from selenium.common.exceptions import TimeoutException, WebDriverException
     from selenium.common.exceptions import ElementNotVisibleException
     from selenium.webdriver.common.keys import Keys
@@ -119,6 +121,18 @@ class SelScrape(SearchEngineScrape, threading.Thread):
         'baiduimg': 'http://image.baidu.com/',
     }
 
+    see_more_bt = {
+            'google': '#smb',
+        'bing': '.btn_seemore',
+        'yahoo': '.ygbt.more-res',
+        'baidu': None,
+        'yandex': '.button2 button2_size_l button2_theme_normal button2_type_link more__button i-bem button2_js_inited',
+        'ask': None,
+        'blekko': None,
+        'googleimg': None,
+        'baiduimg': None
+    }
+
     def __init__(self, config, *args, captcha_lock=None, browser_num=1, **kwargs):
         """Create a new SelScraper thread Instance.
 
@@ -143,6 +157,7 @@ class SelScrape(SearchEngineScrape, threading.Thread):
 
         # get the base search url based on the search engine.
         self.base_search_url = get_base_search_url_by_search_engine(self.config, self.search_engine_name, self.scrape_method)
+
         super().instance_creation_info(self.__class__.__name__)
 
     def set_proxy(self):
@@ -271,6 +286,9 @@ class SelScrape(SearchEngineScrape, threading.Thread):
             dcap = dict(DesiredCapabilities.PHANTOMJS)
             dcap["phantomjs.page.settings.userAgent"] = random_user_agent(only_desktop=True)
 
+            print(service_args)
+            #print(dcap)
+            #print(webdriver.PhantomJS(service_args=service_args, desired_capabilities=dcap))
             self.webdriver = webdriver.PhantomJS(service_args=service_args, desired_capabilities=dcap)
             return True
         except WebDriverException as e:
@@ -534,6 +552,8 @@ class SelScrape(SearchEngineScrape, threading.Thread):
                 self.search_input = self.handle_request_denied()
 
             if self.search_input:
+                logger.info(self.search_input)
+                logger.info(type(self.search_input))
                 self.search_input.clear()
                 time.sleep(.25)
 
@@ -573,6 +593,15 @@ class SelScrape(SearchEngineScrape, threading.Thread):
             super().detection_prevention_sleep()
             super().keyword_info()
 
+
+            if self.search_type == 'image':
+                # get as many image as possible
+                self.page_bottom()
+                self.html = self.webdriver.page_source
+
+                self.after_search()
+                continue
+
             for self.page_number in self.pages_per_keyword:
 
                 self.wait_until_serp_loaded()
@@ -611,6 +640,34 @@ class SelScrape(SearchEngineScrape, threading.Thread):
         '''
 
         self.webdriver.execute_script(js)
+
+    def page_bottom(self):
+        js = '''
+            window.scrollTo(0, document.body.scrollHeight);
+            var lenOfPage=document.body.scrollHeight;
+            return lenOfPage;
+        '''
+        lenOfPage = self.webdriver.execute_script(js)
+        lastLength = 0
+        time.sleep(2)
+
+        for i in self.pages_per_keyword:
+            lastLength = lenOfPage
+            lenOfPage = self.webdriver.execute_script(js)
+            time.sleep(2)
+
+            css_selector = self.see_more_bt.get(self.search_engine_name, None)
+            if css_selector:
+                try:
+                    element = self.webdriver.find_element_by_css_selector(css_selector)
+                    element.click()
+                except ElementNotVisibleException:
+                    time.sleep(2)
+                    actions = ActionChains(self.webdriver)
+                    actions.move_to_element(element).click().perform()
+                except Exception as e:
+                    pass
+
 
     def run(self):
         """Run the SelScraper."""
