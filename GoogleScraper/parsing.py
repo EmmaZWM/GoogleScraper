@@ -807,9 +807,9 @@ class BaiduParser(Parser):
     image_search_selectors = {
         'results': {
             'ch_ip': {
-                'container': '#imgContainer',
-                'result_container': '.pageCon > li',
-                'link': '.imgShow a::attr(href)'
+                'container': '.imgpage',
+                'result_container': '.imgbox',
+                'link': 'a::attr(href)'
             },
         }
     }
@@ -1084,7 +1084,6 @@ if __name__ == '__main__':
 
     parser = parser(html=raw_html)
     parser.parse()
-    #print(parser)
 
     with open('/tmp/testhtml.html', 'w') as of:
         of.write(raw_html)
